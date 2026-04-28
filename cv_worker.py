@@ -45,6 +45,22 @@ GIGE_TIMEOUT_MS = 3000
 #   1500  → MTU chuẩn nếu switch không hỗ trợ Jumbo Frame
 GIGE_PACKET_SIZE: int | None = None
 
+# ── Exposure (áp dụng cho cả GigE lẫn OpenCV) ────────────────────────────────
+#
+# EXPOSURE_MODE:
+#   "auto"   → để camera tự điều chỉnh (AutoExposure)
+#   "manual" → dùng giá trị EXPOSURE_TIME_US bên dưới
+#
+EXPOSURE_MODE = "manual"   # ← "auto" hoặc "manual"
+
+# Thời gian phơi sáng (micro-giây) — chỉ có hiệu lực khi EXPOSURE_MODE = "manual"
+#   Giá trị tham khảo:
+#     Môi trường sáng (đèn LED/ring light)  :   500 –  5_000 µs
+#     Môi trường phòng bình thường           :  5_000 – 30_000 µs
+#     Môi trường tối / tốc độ chậm          : 30_000 – 100_000 µs
+#   Lưu ý: GigE thường giới hạn max exposure = 1 / FPS (ví dụ 30fps → max ~33_333 µs)
+EXPOSURE_TIME_US: float = 10_000.0   # ← chỉnh tại đây (đơn vị: micro-giây)
+
 # ── Cấu hình OpenCV (chỉ dùng khi CAMERA_BACKEND = "opencv") ─────────────────
 OPENCV_CAMERA_INDEX = 0
 
@@ -170,6 +186,19 @@ class _GigECamera:
                 cam.set_frame_rate(float(TARGET_FPS))
             except Exception:
                 pass  # Một số camera không cho chỉnh FPS qua GenICam
+
+            # u2500u2500 Exposure u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500u2500
+            try:
+                if EXPOSURE_MODE == "auto":
+                    cam.set_exposure_time_auto(1)   # 1 = Aravis.Auto.CONTINUOUS
+                    print("[Aravis] Exposure: AUTO")
+                else:
+                    cam.set_exposure_time_auto(0)   # 0 = Aravis.Auto.OFF
+                    cam.set_exposure_time(EXPOSURE_TIME_US)
+                    actual = cam.get_exposure_time()
+                    print(f"[Aravis] Exposure: MANUAL {actual:.0f} u00b5s ({actual/1000:.1f} ms)")
+            except Exception as exc:
+                print(f"[Aravis] WARNING: khu00f4ng chu1ec9nh u0111u01b0u1ee3c exposure: {exc}")
 
             # ── Stream + buffer pool ─────────────────────────────────────────
             self._stream = cam.create_stream(None, None)
@@ -305,6 +334,13 @@ class _OpenCVCamera:
         self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  2048)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
         self._cap.set(cv2.CAP_PROP_FPS,          TARGET_FPS)
+        # Exposure
+        if EXPOSURE_MODE == "manual":
+            self._cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # 0.25 = manual mode
+            # OpenCV nhan don vi giay, Aravis nhan micro-giay
+            self._cap.set(cv2.CAP_PROP_EXPOSURE, EXPOSURE_TIME_US / 1_000_000)
+        else:
+            self._cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # 0.75 = auto mode
         return True
 
     def isOpened(self) -> bool:
@@ -364,12 +400,43 @@ class CVWorker(QThread):
         self._mutex       = QMutex()
         self._reference   = None
         self._prev_scan   = None
+        self._cam         = None   # set by run(), used by set_exposure()
 
     # ── Public API ───────────────────────────────────────────────────────────
 
     def set_roi(self, roi: tuple) -> None:
         with QMutexLocker(self._mutex):
             self.roi = roi
+
+    def set_exposure(self, exposure_us: float, mode: str = "manual") -> None:
+        """
+        Chỉnh exposure ngay khi đang chạy (không cần restart thread).
+        exposure_us : thời gian phơi sáng tính bằng micro-giây.
+        mode        : "manual" hoặc "auto" (bỏ qua exposure_us khi auto).
+        """
+        global EXPOSURE_MODE, EXPOSURE_TIME_US
+        EXPOSURE_MODE    = mode
+        EXPOSURE_TIME_US = exposure_us
+        cam = self._cam
+        if cam is None:
+            return
+        try:
+            if isinstance(cam, _GigECamera) and cam.isOpened() and cam._cam:
+                if mode == "auto":
+                    cam._cam.set_exposure_time_auto(1)
+                else:
+                    cam._cam.set_exposure_time_auto(0)
+                    cam._cam.set_exposure_time(exposure_us)
+                    actual = cam._cam.get_exposure_time()
+                    print(f"[Aravis] Exposure updated: {actual:.0f} µs ({actual/1000:.1f} ms)")
+            elif isinstance(cam, _OpenCVCamera) and cam.isOpened():
+                if mode == "auto":
+                    cam._cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
+                else:
+                    cam._cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+                    cam._cap.set(cv2.CAP_PROP_EXPOSURE, exposure_us / 1_000_000)
+        except Exception as exc:
+            print(f"[CVWorker] set_exposure lỗi: {exc}")
 
     def capture_reference(self) -> None:
         with QMutexLocker(self._mutex):
@@ -396,6 +463,7 @@ class CVWorker(QThread):
     def run(self) -> None:
         cam = _make_camera()
 
+        self._cam = cam
         if not cam.open():
             if CAMERA_BACKEND == "gige":
                 msg = (
@@ -486,6 +554,7 @@ class CVWorker(QThread):
                 time.sleep(sleep)
 
         cam.release()
+        self._cam = None
 
     # ── CV helpers ────────────────────────────────────────────────────────────
 
