@@ -1,0 +1,101 @@
+{
+  "app_title": "⬡  ダスト検査システム",
+  "window_title": "ダスト検査システム  //  産業用CVシステム",
+
+  "topbar": {
+    "camera_label": "カメラ:"
+  },
+
+  "controls": {
+    "workflow_hint": "ROI描画  →  基準フレーム取得  →  スキャン",
+    "btn_connect": "接続",
+    "btn_disconnect": "切断",
+    "btn_reference": "◉  基準フレーム取得",
+    "btn_scan": "▶  スキャン開始",
+    "btn_scan_active": "スキャン中...",
+    "btn_reset": "↺  新規シート",
+    "btn_toggle_ref": "基準との比較",
+    "btn_refresh": "↻  更新",
+    "btn_export_yolo": "⬡  YOLOデータセット出力"
+  },
+
+  "metrics": {
+    "section_title": "ライブ計測",
+    "density_title": "ダスト密度 %",
+    "count_title": "粒子数",
+    "min_size_label": "最小サイズ",
+    "show_bbox": "バウンディングボックス表示",
+    "section_particles": "粒子サイズ一覧"
+  },
+
+  "history": {
+    "section_title": "検査履歴",
+    "col_id": "",
+    "col_timestamp": "タイムスタンプ",
+    "col_density": "密度",
+    "col_count": "個数",
+    "col_status": "ステータス",
+    "session_active": "進行中",
+    "session_label": "セッション"
+  },
+
+  "particles_table": {
+    "col_id": "#",
+    "col_area": "面積 px²",
+    "col_w": "幅 px",
+    "col_h": "高さ px",
+    "col_class": "クラス"
+  },
+
+  "class_picker": {
+    "title": "粒子ラベル付け  —  #{}",
+    "info_area": "面積: {} px²",
+    "info_w": "幅: {} px",
+    "info_h": "高さ: {} px",
+    "btn_confirm": "✔  確定",
+    "btn_cancel": "キャンセル"
+  },
+
+  "status": {
+    "ready": "システム準備完了。カメラを選択して接続してください。",
+    "camera_connected": "カメラ{} 接続済み。ROIを描画して基準フレームを取得してください。",
+    "camera_disconnected": "カメラ切断済み。",
+    "draw_roi": "新規シート。ROIを描画して基準フレームを取得してください。",
+    "roi_set": "ROI: {}x{} px — 基準フレームを取得してください。",
+    "roi_restored": "ROIを復元しました。新規シートの基準フレームを取得してください。",
+    "ref_captured": "[{}] 基準フレーム取得完了。スキャンしてください。",
+    "ref_ok": "[{}] 基準フレームOK - スキャンしてください。",
+    "scanning": "[{}] キャプチャ中・解析中...",
+    "scan_done": "[{}] スキャン#{}: {:.1f}% - {} (ID#{}) [YOLO:{}] — 粒子をクリックしてラベル付け",
+    "draw_roi_first": "基準フレーム取得前にROIを描画してください。",
+    "no_export_data": "エクスポートするスキャンデータがありません。",
+    "exporting": "{} 枚の画像を {} へエクスポート中...",
+    "export_ok": "エクスポート完了 - {} 枚の画像、{} 個のクロップ -> {}",
+    "export_failed": "エクスポート失敗: {}",
+    "particle_labeled": "粒子#{} → {}  [スキャン{}]"
+  },
+
+  "export_dialog": {
+    "title": "YOLOエクスポート完了！",
+    "folder": "フォルダ",
+    "images": "画像数",
+    "train_val": "訓練{} / 検証{}",
+    "labels": "ラベル数",
+    "crops": "個別粒子クロップ",
+    "skipped": "スキップ",
+    "yaml_ready": "dataset.yamlはYOLO学習に使用できます。",
+    "train_cmd": "学習コマンド:",
+    "choose_folder": "YOLOデータセットフォルダを選択",
+    "error_title": "エクスポートエラー"
+  },
+
+  "theme": {
+    "btn_dark": "ダーク",
+    "btn_light": "ライト"
+  },
+
+  "lang": {
+    "btn_en": "EN",
+    "btn_ja": "日本語"
+  }
+}

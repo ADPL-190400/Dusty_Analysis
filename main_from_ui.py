@@ -29,8 +29,13 @@ from cv_worker      import CVWorker
 from database       import init_db, save_inspection, fetch_history, InspectionRecord
 from clickablelabel import ClickableLabel
 from yolo_exporter  import YoloExporter, CLASS_NAMES, DEFAULT_CLASS_ID
+from theme_manager  import DARK, LIGHT, build_stylesheet, dialog_stylesheet, load_lang, FONT_SIZES
 
 SCAN_ANIM_MS = 800
+
+# ── Module-level globals for theme & language (mutated at runtime) ────────────
+_PALETTE: dict = DARK   # active colour palette
+_LANG:    dict = {}     # active language strings (populated before MainWindow)
 
 STATUS_COLORS = {
     "CLEAN": "#00FF9C", "LIGHT DUST": "#FFD600",
@@ -60,62 +65,28 @@ class ClassPickerDialog(QDialog):
 
     def __init__(self, particle: dict, current_class: int, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Gán loại bụi — hạt #{particle['id']}")
+        cp = _LANG.get("class_picker", {})
+        self.setWindowTitle(cp.get("title", "Label Particle — #{}").format(particle["id"]))
         self.setModal(True)
         self.setFixedWidth(320)
         self.chosen_class = current_class
 
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #151820;
-                color: #C8CDD8;
-                font-family: 'Consolas', monospace;
-            }
-            QLabel { color: #C8CDD8; }
-            QPushButton {
-                background-color: #1E2330;
-                color: #C8CDD8;
-                border: 1px solid #2E3545;
-                border-radius: 4px;
-                padding: 8px 14px;
-                font-family: 'Consolas', monospace;
-                font-size: 12px;
-                text-align: left;
-            }
-            QPushButton:hover { background-color: #252B3B; border-color: #00C8FF; }
-            QPushButton:checked {
-                background-color: #003D55;
-                border-color: #00C8FF;
-                color: #FFFFFF;
-                font-weight: bold;
-            }
-            QPushButton#btnOk {
-                background-color: #003D1E;
-                border-color: #00FF9C;
-                color: #00FF9C;
-                font-weight: bold;
-                text-align: center;
-            }
-            QPushButton#btnOk:hover { background-color: #005128; }
-            QPushButton#btnCancel {
-                background-color: #1E2330;
-                border-color: #2E3545;
-                color: #5A6070;
-                text-align: center;
-            }
-        """)
+        self.setStyleSheet(dialog_stylesheet(_PALETTE))
 
         layout = QVBoxLayout(self)
         layout.setSpacing(8)
         layout.setContentsMargins(16, 16, 16, 16)
 
         # Info hạt bụi
+        area = particle.get("area_px", 0)
+        w_px = particle.get("w_px", 0)
+        h_px = particle.get("h_px", 0)
         info = QLabel(
-            f"  Area: {particle.get('area_px', 0)} px²   "
-            f"W: {particle.get('w_px', 0)} px   "
-            f"H: {particle.get('h_px', 0)} px"
+            f"  {cp.get('info_area','Area: {} px²').format(area)}   "
+            f"{cp.get('info_w','W: {} px').format(w_px)}   "
+            f"{cp.get('info_h','H: {} px').format(h_px)}"
         )
-        info.setStyleSheet("color: #5A6070; font-size: 11px; margin-bottom: 6px;")
+        info.setStyleSheet(f"color: {_PALETTE['text_secondary']}; font-size: 11px; margin-bottom: 6px;")
         layout.addWidget(info)
 
         # Buttons chọn class
@@ -127,8 +98,8 @@ class ClassPickerDialog(QDialog):
             btn.setCheckable(True)
             btn.setChecked(cls_id == current_class)
             btn.setStyleSheet(
-                f"QPushButton {{ color: {color}; border-color: #2E3545; }}"
-                f"QPushButton:checked {{ background-color: #1A2030; border-color: {color}; "
+                f"QPushButton {{ color: {color}; border-color: {_PALETTE['border_input']}; }}"
+                f"QPushButton:checked {{ background-color: {_PALETTE['bg_input']}; border-color: {color}; "
                 f"  color: {color}; font-weight: bold; }}"
                 f"QPushButton:hover {{ border-color: {color}; }}"
             )
@@ -141,10 +112,10 @@ class ClassPickerDialog(QDialog):
         # OK / Cancel
         row = QHBoxLayout()
         row.setSpacing(8)
-        btn_ok = QPushButton("✔  CONFIRM")
+        btn_ok = QPushButton(cp.get("btn_confirm", "✔  CONFIRM"))
         btn_ok.setObjectName("btnOk")
         btn_ok.clicked.connect(self.accept)
-        btn_cancel = QPushButton("CANCEL")
+        btn_cancel = QPushButton(cp.get("btn_cancel", "CANCEL"))
         btn_cancel.setObjectName("btnCancel")
         btn_cancel.clicked.connect(self.reject)
         row.addWidget(btn_cancel)
@@ -231,15 +202,15 @@ def _populate_history_table(table, all_records, current_session_id):
     for ri, rd in enumerate(rows):
         if rd[0] == "header":
             _, sid, is_cur = rd
-            bg = "#003040" if is_cur else "#151820"
-            fg = "#00C8FF" if is_cur else "#5A6070"
+            bg = _PALETTE["history_cur_bg"] if is_cur else _PALETTE["history_other_bg"]
+            fg = _PALETTE["history_cur_fg"] if is_cur else _PALETTE["history_other_fg"]
             mk = "ACTIVE" if is_cur else ""
             for c in range(5): table.setItem(ri, c, _item("", bg=bg))
             table.setItem(ri, 0, _item(f"{'▶' if is_cur else '▷'} {mk} SESSION {sid}", color=fg, bold=True, bg=bg))
             table.setSpan(ri, 0, 1, 5); table.setRowHeight(ri, 30)
         else:
             _, sn, r, is_cur = rd
-            bg = "#0A1520" if is_cur else "#080A0D"
+            bg = _PALETTE["scan_cur_bg"] if is_cur else _PALETTE["scan_other_bg"]
             sc = STATUS_COLORS.get(r.status, "#C8CDD8")
             table.setItem(ri,0,_item(f"  #{sn}", color="#5A6070", bg=bg))
             table.setItem(ri,1,_item(r.timestamp, color="#C8CDD8", bg=bg))
@@ -303,11 +274,16 @@ class MainWindow(QMainWindow):
         self.sliderSizeFilter.valueChanged.connect(self._on_size_filter_changed)
         self._update_size_filter_label(0)
 
-        self.btnReset.setText("NEW PAPER")
-        self.btnScan.setText("SCAN")
+        self._current_lang_code = "en"
+        self._current_theme     = "dark"
+
+        self.btnToggleTheme.clicked.connect(self._on_toggle_theme)
+        self.btnLangEn.clicked.connect(lambda: self._on_set_lang("en"))
+        self.btnLangJa.clicked.connect(lambda: self._on_set_lang("ja"))
+
+        self._apply_theme_and_lang()
         self._set_btn_state("idle")
         self._refresh_history()
-        self._set_status("System ready. Select camera and press CONNECT.")
 
     def _replace_with_clickable(self):
         old = self.lblVideoFeed
@@ -407,8 +383,9 @@ class MainWindow(QMainWindow):
             self._redraw_overlay_with_labels()
             cls_name = _class_name(dlg.chosen_class)
             self._set_status(
-                f"Hạt #{best_p['id']} → {cls_name}  "
-                f"[scan {self._current_scan_index}]")
+                _LANG.get("status",{}).get("particle_labeled","Particle #{} → {}  [scan {}]").format(
+                    best_p["id"], cls_name, self._current_scan_index
+                ))
 
     def _widget_to_image_coords(self, pt: QPoint) -> QPoint | None:
         """
@@ -505,7 +482,7 @@ class MainWindow(QMainWindow):
         self._roi_frame = (frame_rect.x(), frame_rect.y(), frame_rect.width(), frame_rect.height())
         if self._worker and self._worker.isRunning():
             self._worker.set_roi(self._roi_frame); self._set_btn_state("roi_set")
-        self._set_status(f"ROI: {frame_rect.width()}x{frame_rect.height()} px — Capture reference to begin.")
+        self._set_status(_LANG.get("status",{}).get("roi_set","ROI: {}x{} px — Capture reference to begin.").format(frame_rect.width(),frame_rect.height()))
 
     # ── Connect ───────────────────────────────────────────────────────────────
 
@@ -513,22 +490,22 @@ class MainWindow(QMainWindow):
     def _on_connect(self):
         if self._worker and self._worker.isRunning():
             self._worker.stop(); self._worker.wait(); self._worker = None
-            self.btnConnect.setText("CONNECT"); self._set_btn_state("idle")
-            self._set_status("Camera disconnected."); return
+            self.btnConnect.setText(_LANG.get("controls",{}).get("btn_connect","CONNECT")); self._set_btn_state("idle")
+            self._set_status(_LANG.get("status",{}).get("camera_disconnected","Camera disconnected.")); return
         cam_idx = self.cmbCamera.currentIndex()
         self._worker = CVWorker(camera_index=cam_idx)
         self._worker.frame_ready.connect(self._on_frame)
         self._worker.scan_result.connect(self._on_scan_result)
         self._worker.error.connect(self._on_error)
         self._worker.start()
-        self.btnConnect.setText("DISCONNECT")
+        self.btnConnect.setText(_LANG.get("controls",{}).get("btn_disconnect","DISCONNECT"))
         self._set_btn_state("roi_set" if self._roi_frame else "idle")
-        self._set_status(f"Camera {cam_idx} connected. Draw ROI then CAPTURE REFERENCE.")
+        self._set_status(_LANG.get("status",{}).get("camera_connected","Camera {} connected. Draw ROI then CAPTURE REFERENCE.").format(cam_idx))
 
     @pyqtSlot()
     def _on_capture_ref(self):
         if not self._worker or not self._roi_frame:
-            self._set_status("Draw ROI before capturing reference.", error=True); return
+            self._set_status(_LANG.get("status",{}).get("draw_roi_first","Draw ROI before capturing reference."), error=True); return
         self.lblVideoFeed.clear_roi()
         self._session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._session_row_ids = []
@@ -542,7 +519,7 @@ class MainWindow(QMainWindow):
         self.lblStatus.setText("—"); self.progressDensity.setValue(0)
         self._clear_particle_table()
         self._refresh_history(); self._set_btn_state("ref_captured")
-        self._set_status(f"[{self._session_id}] Reference captured. Press SCAN.")
+        self._set_status(_LANG.get("status",{}).get("ref_captured","[{}] Reference captured. Press SCAN.").format(self._session_id))
 
     @pyqtSlot()
     def _on_scan(self):
@@ -550,13 +527,13 @@ class MainWindow(QMainWindow):
         self._worker.capture_scan()
         self.scan_line.setGeometry(self.lblVideoFeed.rect()); self.scan_line.run_once()
         self.btnScan.setText("SCANNING..."); self._set_btn_state("scanning")
-        self._set_status(f"[{self._session_id}] Capturing and analysing...")
+        self._set_status(_LANG.get("status",{}).get("scanning","[{}] Capturing and analysing...").format(self._session_id))
 
     @pyqtSlot(dict)
     def _on_scan_result(self, data):
         event = data.get("event")
         if event == "reference_captured":
-            self._set_status(f"[{self._session_id}] Reference OK - Press SCAN."); return
+            self._set_status(_LANG.get("status",{}).get("ref_ok","[{}] Reference OK - Press SCAN.").format(self._session_id)); return
         if event != "scan_done": return
 
         self._frame_vs_ref  = data.get("frame_vs_ref")
@@ -573,11 +550,11 @@ class MainWindow(QMainWindow):
         self.lblCountValue.setText(str(count))
         self.lblStatus.setText(status)
         self.progressDensity.setValue(min(int(density), 100))
-        color = STATUS_COLORS.get(status, "#00C8FF")
+        color = STATUS_COLORS.get(status, _PALETTE["accent_cyan"])
         self.lblStatus.setStyleSheet(
-            f"color:{color};font-size:20px;font-weight:bold;"
-            "border:1px solid #1E2330;border-radius:4px;"
-            "background:#0D0F14;letter-spacing:4px;padding:8px;")
+            f"color:{color};font-size:{FONT_SIZES['status']}px;font-weight:bold;"
+            f"border:1px solid {_PALETTE['border_subtle']};border-radius:4px;"
+            f"background:{_PALETTE['bg_root']};letter-spacing:4px;padding:8px;")
 
         self._first_scan = not has_prev
         self._overlay_mode = "ref"
@@ -611,10 +588,12 @@ class MainWindow(QMainWindow):
         self._session_row_ids.append(row_id)
         self._refresh_history(); self.btnScan.setText("SCAN")
         self._set_btn_state("scan_done")
+        _st = _LANG.get("status", {})
         self._set_status(
-            f"[{self._session_id}] Scan #{len(self._session_row_ids)}: "
-            f"{density:.1f}% - {status} (ID#{row_id}) [YOLO:{self._yolo.count()}] "
-            f"— Click hạt bụi để gán loại")
+            _st.get("scan_done", "[{}] Scan #{}: {:.1f}% - {} (ID#{}) [YOLO:{}] — Click particle to label").format(
+                self._session_id, len(self._session_row_ids),
+                density, status, row_id, self._yolo.count()
+            ))
 
     @pyqtSlot()
     def _on_toggle_overlay(self):
@@ -671,30 +650,32 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def _on_export_yolo(self):
         if self._yolo.count() == 0:
-            self._set_status("No scan data to export.", error=True); return
+            self._set_status(_LANG.get("status",{}).get("no_export_data","No scan data to export."), error=True); return
         out_dir = QFileDialog.getExistingDirectory(self, "Choose YOLO dataset folder", str(Path.home()))
         if not out_dir: return
         out_path = Path(out_dir) / "yolo_dataset"
-        self._set_status(f"Exporting {self._yolo.count()} images to {out_path}...")
+        self._set_status(_LANG.get("status",{}).get("exporting","Exporting {} images to {}...").format(self._yolo.count(), out_path))
         QApplication.processEvents()
         try:
             stats = self._yolo.export(out_path)
+            ed = _LANG.get("export_dialog", {})
             msg = (
-                f"YOLO Export complete!\n\n"
-                f"  Folder  : {out_path}\n"
-                f"  Images  : {stats['images']}  (train {stats['train']} / val {stats['val']})\n"
-                f"  Labels  : {stats['labels']}\n"
-                f"  Crops   : {stats['crops']} individual particles\n"
-                f"  Skipped : {stats['skipped']}\n\n"
-                f"dataset.yaml is ready for YOLO training.\n"
-                f"Train command:\n"
+                f"{ed.get('title','YOLO Export complete!')}\n\n"
+                f"  {ed.get('folder','Folder')}: {out_path}\n"
+                f"  {ed.get('images','Images')}: {stats['images']}  "
+                f"({ed.get('train_val','train {} / val {}').format(stats['train'],stats['val'])})\n"
+                f"  {ed.get('labels','Labels')}: {stats['labels']}\n"
+                f"  {ed.get('crops','Crops')}: {stats['crops']} {ed.get('crops','individual particles')}\n"
+                f"  {ed.get('skipped','Skipped')}: {stats['skipped']}\n\n"
+                f"{ed.get('yaml_ready','dataset.yaml is ready for YOLO training.')}\n"
+                f"{ed.get('train_cmd','Train command:')}\n"
                 f"  yolo detect train data={out_path}/dataset.yaml model=yolov8n.pt epochs=100"
             )
-            QMessageBox.information(self, "Export YOLO", msg)
-            self._set_status(f"Export OK - {stats['images']} images, {stats['crops']} crops -> {out_path}")
+            QMessageBox.information(self, ed.get("title","Export YOLO"), msg)
+            self._set_status(_LANG.get("status",{}).get("export_ok","Export OK - {} images, {} crops -> {}").format(stats["images"],stats["crops"],out_path))
         except Exception as e:
             QMessageBox.critical(self, "Export Error", str(e))
-            self._set_status(f"Export failed: {e}", error=True)
+            self._set_status(_LANG.get("status",{}).get("export_failed","Export failed: {}").format(e), error=True)
 
     # ── New paper ─────────────────────────────────────────────────────────────
 
@@ -715,10 +696,10 @@ class MainWindow(QMainWindow):
         self._clear_particle_table(); self._refresh_history()
         if self._roi_frame:
             self._set_btn_state("roi_set")
-            self._set_status("ROI restored. Capture reference for new sheet.")
+            self._set_status(_LANG.get("status",{}).get("roi_restored","ROI restored. Capture reference for new sheet."))
         else:
             self._set_btn_state("idle")
-            self._set_status("New sheet. Draw ROI and capture reference.")
+            self._set_status(_LANG.get("status",{}).get("draw_roi","New sheet. Draw ROI and capture reference."))
 
     # ── Frame / error ─────────────────────────────────────────────────────────
 
@@ -747,18 +728,118 @@ class MainWindow(QMainWindow):
         return QImage(rgb.data, w, h, ch*w, QImage.Format.Format_RGB888).copy()
 
     def _set_status(self, msg, error=False):
-        color = "#FF3366" if error else "#5A6070"
+        color = _PALETTE["accent_red"] if error else _PALETTE["text_secondary"]
         self.statusBar.showMessage(f"  {msg}")
-        self.statusBar.setStyleSheet(f"QStatusBar {{ background:#080A0D; color:{color}; }}")
+        self.statusBar.setStyleSheet(
+            f"QStatusBar {{ background:{_PALETTE['bg_statusbar']}; color:{color}; }}"
+        )
 
     def closeEvent(self, e):
         if self._worker and self._worker.isRunning():
             self._worker.stop(); self._worker.wait()
         e.accept()
 
+    # ── Theme & Language ──────────────────────────────────────────────────────
+
+    def _apply_theme_and_lang(self):
+        """Apply the current palette + language to the whole UI."""
+        global _PALETTE, _LANG
+        p   = _PALETTE
+        lng = _LANG
+
+        # ── Stylesheet ────────────────────────────────────────────────────
+        QApplication.instance().setStyleSheet(build_stylesheet(p))
+
+        # ── Top bar controls ──────────────────────────────────────────────
+        tb   = lng.get("theme",    {})
+        ctrl = lng.get("controls", {})
+        topb = lng.get("topbar",   {})
+
+        is_dark = (self._current_theme == "dark")
+        self.btnToggleTheme.setText(tb.get("btn_dark" if is_dark else "btn_light",
+                                           "🌙  DARK" if is_dark else "☀  LIGHT"))
+        self.lblCameraText.setText(topb.get("camera_label", "CAMERA:"))
+        self.lblTitle.setText(lng.get("app_title", "⬡  DUST INSPECTOR"))
+        self.setWindowTitle(lng.get("window_title", "DUST INSPECTOR  //  INDUSTRIAL CV SYSTEM"))
+
+        # Lang button state
+        self.btnLangEn.setChecked(self._current_lang_code == "en")
+        self.btnLangJa.setChecked(self._current_lang_code == "ja")
+
+        # ── Permanent button labels ───────────────────────────────────────
+        connected = self._worker and self._worker.isRunning()
+        self.btnConnect.setText(ctrl.get("btn_disconnect" if connected else "btn_connect",
+                                         "DISCONNECT" if connected else "CONNECT"))
+        self.btnReference.setText(ctrl.get("btn_reference", "◉  CAPTURE REFERENCE"))
+        self.btnReset.setText(ctrl.get("btn_reset", "↺  NEW PAPER"))
+        if self.btnScan.text() not in (
+            ctrl.get("btn_scan_active", "SCANNING..."),
+        ):
+            self.btnScan.setText(ctrl.get("btn_scan", "▶  START SCAN"))
+        self.btnToggleOverlay.setText(ctrl.get("btn_toggle_ref", "🔬  VS REFERENCE"))
+        self.btnRefresh.setText(ctrl.get("btn_refresh",   "↻  REFRESH"))
+        self.btnExportYolo.setText(ctrl.get("btn_export_yolo", "⬡  EXPORT YOLO DATASET"))
+
+        # ── Section labels ────────────────────────────────────────────────
+        met = lng.get("metrics", {})
+        his = lng.get("history", {})
+        self.lblSectionMetrics.setText(met.get("section_title", "LIVE METRICS"))
+        self.lblDensityTitle.setText(met.get("density_title",   "DUST DENSITY %"))
+        self.lblCountTitle.setText(met.get("count_title",       "PARTICLE COUNT"))
+        self.lblSectionHistory.setText(his.get("section_title", "INSPECTION HISTORY"))
+        try:
+            self.lblSectionRoi.setText(ctrl.get("workflow_hint",
+                "DRAW ROI ON FEED  →  CAPTURE REF  →  SCAN"))
+            self.lblSizeFilterTitle.setText(met.get("min_size_label", "MIN SIZE"))
+            self.radioShowBB.setText(met.get("show_bbox", "Show bounding box"))
+            self.lblSectionParticles.setText(met.get("section_particles", "PARTICLE SIZE LIST"))
+        except AttributeError:
+            pass
+
+        # ── Table headers ─────────────────────────────────────────────────
+        pt = lng.get("particles_table", {})
+        self.tableParticles.setHorizontalHeaderLabels([
+            pt.get("col_id","#"), pt.get("col_area","AREA px²"),
+            pt.get("col_w","W px"), pt.get("col_h","H px"),
+            pt.get("col_class","CLASS"),
+        ])
+        ht = lng.get("history", {})
+        self.tableHistory.setHorizontalHeaderLabels([
+            ht.get("col_id",""), ht.get("col_timestamp","TIMESTAMP"),
+            ht.get("col_density","DENSITY"), ht.get("col_count","COUNT"),
+            ht.get("col_status","STATUS"),
+        ])
+
+        # ── Refresh dynamic content ───────────────────────────────────────
+        self._refresh_history()
+        self._set_status(lng.get("status",{}).get("ready",
+                         "System ready. Select camera and press CONNECT."))
+
+    @pyqtSlot()
+    def _on_toggle_theme(self):
+        global _PALETTE
+        if self._current_theme == "dark":
+            self._current_theme = "light"
+            _PALETTE = LIGHT
+        else:
+            self._current_theme = "dark"
+            _PALETTE = DARK
+        self._apply_theme_and_lang()
+
+    @pyqtSlot()
+    def _on_set_lang(self, code: str):
+        global _LANG
+        if code == self._current_lang_code:
+            return
+        self._current_lang_code = code
+        _LANG = load_lang(code)
+        self._apply_theme_and_lang()
+
 
 def main():
+    global _LANG
     app = QApplication(sys.argv); app.setStyle("Fusion")
+    _LANG = load_lang("en")   # default language on startup
     w = MainWindow(); w.show(); sys.exit(app.exec())
 
 if __name__ == "__main__":

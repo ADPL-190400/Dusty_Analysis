@@ -1,0 +1,101 @@
+{
+  "app_title": "⬡  DUST INSPECTOR",
+  "window_title": "DUST INSPECTOR  //  INDUSTRIAL CV SYSTEM",
+
+  "topbar": {
+    "camera_label": "CAMERA:"
+  },
+
+  "controls": {
+    "workflow_hint": "DRAW ROI ON FEED  →  CAPTURE REF  →  SCAN",
+    "btn_connect": "CONNECT",
+    "btn_disconnect": "DISCONNECT",
+    "btn_reference": "◉  CAPTURE REFERENCE",
+    "btn_scan": "▶  START SCAN",
+    "btn_scan_active": "SCANNING...",
+    "btn_reset": "↺  NEW PAPER",
+    "btn_toggle_ref": "VS REFERENCE",
+    "btn_refresh": "↻  REFRESH",
+    "btn_export_yolo": "⬡  EXPORT YOLO DATASET"
+  },
+
+  "metrics": {
+    "section_title": "LIVE METRICS",
+    "density_title": "DUST DENSITY %",
+    "count_title": "PARTICLE COUNT",
+    "min_size_label": "MIN SIZE",
+    "show_bbox": "Show bounding box",
+    "section_particles": "PARTICLE SIZE LIST"
+  },
+
+  "history": {
+    "section_title": "INSPECTION HISTORY",
+    "col_id": "",
+    "col_timestamp": "TIMESTAMP",
+    "col_density": "DENSITY",
+    "col_count": "COUNT",
+    "col_status": "STATUS",
+    "session_active": "ACTIVE",
+    "session_label": "SESSION"
+  },
+
+  "particles_table": {
+    "col_id": "#",
+    "col_area": "AREA px²",
+    "col_w": "W px",
+    "col_h": "H px",
+    "col_class": "CLASS"
+  },
+
+  "class_picker": {
+    "title": "Label Particle  —  #{}",
+    "info_area": "Area: {} px²",
+    "info_w": "W: {} px",
+    "info_h": "H: {} px",
+    "btn_confirm": "✔  CONFIRM",
+    "btn_cancel": "CANCEL"
+  },
+
+  "status": {
+    "ready": "System ready. Select camera and press CONNECT.",
+    "camera_connected": "Camera {} connected. Draw ROI then CAPTURE REFERENCE.",
+    "camera_disconnected": "Camera disconnected.",
+    "draw_roi": "New sheet. Draw ROI and capture reference.",
+    "roi_set": "ROI: {}x{} px — Capture reference to begin.",
+    "roi_restored": "ROI restored. Capture reference for new sheet.",
+    "ref_captured": "[{}] Reference captured. Press SCAN.",
+    "ref_ok": "[{}] Reference OK - Press SCAN.",
+    "scanning": "[{}] Capturing and analysing...",
+    "scan_done": "[{}] Scan #{}: {:.1f}% - {} (ID#{}) [YOLO:{}] — Click particle to label",
+    "draw_roi_first": "Draw ROI before capturing reference.",
+    "no_export_data": "No scan data to export.",
+    "exporting": "Exporting {} images to {}...",
+    "export_ok": "Export OK - {} images, {} crops -> {}",
+    "export_failed": "Export failed: {}",
+    "particle_labeled": "Particle #{} → {}  [scan {}]"
+  },
+
+  "export_dialog": {
+    "title": "YOLO Export complete!",
+    "folder": "Folder",
+    "images": "Images",
+    "train_val": "train {} / val {}",
+    "labels": "Labels",
+    "crops": "individual particles",
+    "skipped": "Skipped",
+    "yaml_ready": "dataset.yaml is ready for YOLO training.",
+    "train_cmd": "Train command:",
+    "choose_folder": "Choose YOLO dataset folder",
+    "error_title": "Export Error"
+  },
+
+  "theme": {
+    "btn_dark": "DARK",
+    "btn_light": "LIGHT"
+  },
+
+  "lang": {
+    "btn_en": "EN",
+    "btn_ja": "日本語"
+  }
+}

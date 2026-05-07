@@ -21,274 +21,7 @@
   </property>
   <property name="styleSheet">
    <string notr="true">
-/* ── Foundations ── */
-QMainWindow, QWidget {
-    background-color: #0D0F14;
-    color: #C8CDD8;
-    font-family: &quot;Consolas&quot;, &quot;Courier New&quot;, monospace;
-    font-size: 13px;
-}
-
-/* ── Panels / Cards ── */
-QFrame#card, QFrame#cardLeft, QFrame#cardRight,
-QFrame#cardControls, QFrame#cardMetrics, QFrame#cardHistory {
-    background-color: #151820;
-    border: 1px solid #252A35;
-    border-radius: 6px;
-}
-
-/* ── Top bar ── */
-QFrame#topBar {
-    background-color: #080A0D;
-    border: none;
-    border-bottom: 2px solid #00C8FF;
-    border-radius: 0px;
-}
-
-/* ── Labels ── */
-QLabel#lblTitle {
-    color: #00C8FF;
-    font-size: 16px;
-    font-weight: bold;
-    letter-spacing: 5px;
-}
-QLabel#lblSectionCamera,
-QLabel#lblSectionRoi,
-QLabel#lblSectionMetrics,
-QLabel#lblSectionHistory {
-    color: #00C8FF;
-    font-size: 11px;
-    font-weight: bold;
-    letter-spacing: 3px;
-}
-QLabel#lblDensityValue,
-QLabel#lblCountValue {
-    color: #E8EAF0;
-    font-size: 36px;
-    font-weight: bold;
-    font-family: &quot;Consolas&quot;, monospace;
-    background-color: transparent;
-}
-QLabel#lblDensityUnit,
-QLabel#lblDensityTitle,
-QLabel#lblCountTitle {
-    color: #5A6070;
-    font-size: 10px;
-    letter-spacing: 2px;
-    background-color: transparent;
-}
-QLabel#lblStatus {
-    color: #00FF9C;
-    font-size: 20px;
-    font-weight: bold;
-    border: 1px solid #1E2330;
-    border-radius: 4px;
-    background-color: #0D0F14;
-    letter-spacing: 4px;
-    padding: 8px;
-}
-QLabel#lblVideoFeed {
-    background-color: #080A0D;
-    border: 1px solid #1E2330;
-    border-radius: 4px;
-}
-QLabel#lblCameraText {
-    color: #C8CDD8;
-}
-
-/* ── Buttons ── */
-QPushButton {
-    background-color: #1E2330;
-    color: #C8CDD8;
-    border: 1px solid #2E3545;
-    border-radius: 4px;
-    padding: 8px 18px;
-    font-family: &quot;Consolas&quot;, monospace;
-    font-size: 12px;
-    letter-spacing: 1px;
-}
-QPushButton:hover  { background-color: #252B3B; border-color: #00C8FF; color: #FFFFFF; }
-QPushButton:pressed { background-color: #0D1018; }
-QPushButton:disabled { color: #3A3F50; border-color: #1E2330; }
-
-QPushButton#btnConnect {
-    background-color: #003D55;
-    border: 1px solid #00C8FF;
-    color: #00C8FF;
-    font-weight: bold;
-    min-width: 110px;
-}
-QPushButton#btnConnect:hover { background-color: #00516E; }
-
-QPushButton#btnReference {
-    background-color: #003D1E;
-    border: 1px solid #00FF9C;
-    color: #00FF9C;
-    font-weight: bold;
-}
-QPushButton#btnReference:hover { background-color: #005128; }
-QPushButton#btnReference:disabled { color: #3A3F50; border-color: #1E2330; background-color: #1E2330; }
-
-QPushButton#btnScan {
-    background-color: #003D55;
-    border: 1px solid #00C8FF;
-    color: #00C8FF;
-    font-weight: bold;
-}
-QPushButton#btnScan:hover { background-color: #00516E; }
-QPushButton#btnScan:disabled { color: #3A3F50; border-color: #1E2330; background-color: #1E2330; }
-
-QPushButton#btnReset {
-    background-color: #3D0015;
-    border: 1px solid #FF3366;
-    color: #FF3366;
-    font-weight: bold;
-}
-QPushButton#btnReset:hover { background-color: #55001E; }
-QPushButton#btnReset:disabled { color: #3A3F50; border-color: #1E2330; background-color: #1E2330; }
-
-QPushButton#btnRefresh {
-    background-color: #1E2330;
-    border: 1px solid #2E3545;
-    color: #5A6070;
-    font-size: 11px;
-    padding: 4px 10px;
-}
-QPushButton#btnRefresh:hover { color: #C8CDD8; border-color: #00C8FF; }
-
-/* ── Combo Box ── */
-QComboBox {
-    background-color: #1E2330;
-    border: 1px solid #2E3545;
-    border-radius: 4px;
-    padding: 6px 10px;
-    color: #C8CDD8;
-    min-width: 140px;
-}
-QComboBox::drop-down { border: none; width: 20px; }
-QComboBox::down-arrow { color: #00C8FF; }
-QComboBox QAbstractItemView {
-    background-color: #1E2330;
-    selection-background-color: #003D55;
-    border: 1px solid #00C8FF;
-    color: #C8CDD8;
-}
-
-/* ── Progress Bar ── */
-QProgressBar {
-    background-color: #1E2330;
-    border: 1px solid #2E3545;
-    border-radius: 3px;
-    height: 8px;
-    text-align: center;
-    color: transparent;
-}
-QProgressBar::chunk { background-color: #00C8FF; border-radius: 3px; }
-
-/* ── Table ── */
-QTableWidget {
-    background-color: #0D0F14;
-    gridline-color: #1E2330;
-    border: none;
-    font-size: 12px;
-}
-QTableWidget::item { padding: 6px 10px; border-bottom: 1px solid #1A1E28; }
-QTableWidget::item:selected { background-color: #003D55; color: #FFFFFF; }
-QHeaderView::section {
-    background-color: #151820;
-    color: #5A6070;
-    border: none;
-    border-bottom: 2px solid #00C8FF;
-    padding: 6px 10px;
-    font-size: 10px;
-    letter-spacing: 2px;
-}
-
-/* ── Scroll Bar ── */
-QScrollBar:vertical {
-    background: #0D0F14; width: 6px; margin: 0;
-}
-QScrollBar::handle:vertical {
-    background: #2E3545; border-radius: 3px; min-height: 20px;
-}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-
-/* ── Status Bar ── */
-QStatusBar {
-    background-color: #080A0D;
-    color: #5A6070;
-    font-size: 11px;
-}
-QStatusBar::item { border: none; }
-
-/* ── Splitter ── */
-QSplitter::handle { background-color: #1E2330; width: 2px; height: 2px; }
-/* ── Toggle Overlay Button ── */
-QPushButton#btnToggleOverlay {
-    background-color: #003D55;
-    border: 1px solid #00C8FF;
-    color: #00C8FF;
-    font-weight: bold;
-    padding: 6px 14px;
-    font-size: 12px;
-    letter-spacing: 1px;
-}
-QPushButton#btnToggleOverlay:hover { background-color: #00516E; }
-QPushButton#btnToggleOverlay:checked {
-    background-color: #3D1500;
-    border: 1px solid #FF8C00;
-    color: #FF8C00;
-}
-QPushButton#btnToggleOverlay:checked:hover { background-color: #5A1E00; }
-QPushButton#btnToggleOverlay:disabled { color: #3A3F50; border-color: #1E2330; background-color: #1E2330; }
-
-/* ── Export YOLO Button ── */
-QPushButton#btnExportYolo {
-    background-color: #1A1500;
-    border: 1px solid #FFD600;
-    color: #FFD600;
-    font-weight: bold;
-    padding: 6px 14px;
-    font-size: 12px;
-    letter-spacing: 1px;
-}
-QPushButton#btnExportYolo:hover { background-color: #2A2000; }
-QPushButton#btnExportYolo:disabled { color: #3A3F50; border-color: #1E2330; background-color: #1E2330; }
-
-/* ── Particle table ── */
-QTableWidget#tableParticles { font-size: 11px; }
-QLabel#lblSectionParticles { color: #00C8FF; font-size: 11px; font-weight: bold; letter-spacing: 3px; }
-
-/* ── Size filter slider ── */
-QSlider#sliderSizeFilter::groove:horizontal {
-    background: #1E2330;
-    height: 4px;
-    border-radius: 2px;
-}
-QSlider#sliderSizeFilter::handle:horizontal {
-    background: #00C8FF;
-    border: 1px solid #00C8FF;
-    width: 12px;
-    height: 12px;
-    margin: -4px 0;
-    border-radius: 6px;
-}
-QSlider#sliderSizeFilter::sub-page:horizontal {
-    background: #00C8FF;
-    border-radius: 2px;
-}
-QLabel#lblSizeFilterTitle {
-    color: #5A6070;
-    font-size: 10px;
-    letter-spacing: 2px;
-}
-QLabel#lblSizeFilterValue {
-    color: #00C8FF;
-    font-size: 11px;
-    font-weight: bold;
-    min-width: 56px;
-}
-
+/* Styles are applied at runtime by theme_manager.py */
    </string>
   </property>
   <widget class="QWidget" name="centralwidget">
@@ -381,6 +114,64 @@ QLabel#lblSizeFilterValue {
         <widget class="QPushButton" name="btnConnect">
          <property name="text">
           <string>CONNECT</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="spacerTopRight">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnToggleTheme">
+         <property name="toolTip">
+          <string>Toggle Dark / Light mode</string>
+         </property>
+         <property name="text">
+          <string>🌙  DARK</string>
+         </property>
+         <property name="checkable">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnLangEn">
+         <property name="toolTip">
+          <string>English</string>
+         </property>
+         <property name="text">
+          <string>EN</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnLangJa">
+         <property name="toolTip">
+          <string>日本語</string>
+         </property>
+         <property name="text">
+          <string>日本語</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -562,13 +353,6 @@ QLabel#lblSizeFilterValue {
              </property>
              <item>
               <widget class="QFrame" name="cardDensity">
-               <property name="styleSheet">
-                <string notr="true">QFrame#cardDensity {
-    background-color: #0D0F14;
-    border: 1px solid #252A35;
-    border-radius: 4px;
-}</string>
-               </property>
                <layout class="QVBoxLayout" name="layoutDensityCard">
                 <property name="spacing">
                  <number>2</number>
@@ -607,13 +391,6 @@ QLabel#lblSizeFilterValue {
              </item>
              <item>
               <widget class="QFrame" name="cardCount">
-               <property name="styleSheet">
-                <string notr="true">QFrame#cardCount {
-    background-color: #0D0F14;
-    border: 1px solid #252A35;
-    border-radius: 4px;
-}</string>
-               </property>
                <layout class="QVBoxLayout" name="layoutCountCard">
                 <property name="spacing">
                  <number>2</number>
