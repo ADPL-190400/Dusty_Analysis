@@ -254,6 +254,7 @@ class MainWindow(QMainWindow):
         self._yolo = YoloExporter()
         self._current_scan_index = -1   # scan_index mới nhất trong _yolo
         self._min_area_filter = 0       # giá trị slider size filter
+        self._showing_frozen_sample = False  # True khi đang hiển thị frozen sample (chưa scan)
         self._post_init()
 
     def _post_init(self):
@@ -283,7 +284,11 @@ class MainWindow(QMainWindow):
         self.btnRefresh.clicked.connect(self._refresh_history)
         self.btnToggleOverlay.clicked.connect(self._on_toggle_overlay)
         self.btnExportYolo.clicked.connect(self._on_export_yolo)
-        self.radioShowBB.toggled.connect(lambda _: self._redraw_overlay_with_labels())  
+        self.radioShowBB.toggled.connect(lambda _: self._redraw_overlay_with_labels())
+
+        # btnReference hoạt động 2 chế độ: "capture_reference" và "capture_sample"
+        # _btn_ref_mode theo dõi chế độ hiện tại
+        self._btn_ref_mode = "capture_reference"   # hoặc "capture_sample"  
 
         # Size filter slider
         self.sliderSizeFilter.setMinimum(0)
@@ -317,11 +322,26 @@ class MainWindow(QMainWindow):
 
     def _set_btn_state(self, state):
         self.btnConnect.setEnabled(True)
-        self.btnReference.setEnabled(state in ("roi_set","ref_captured","scan_done"))
-        self.btnScan.setEnabled(state in ("ref_captured","scan_done"))
-        self.btnReset.setEnabled(state in ("ref_captured","scanning","scan_done"))
+        self.btnReference.setEnabled(state in ("roi_set", "ref_captured", "sample_captured", "scan_done"))
+        self.btnScan.setEnabled(state in ("sample_captured", "scan_done"))
+        self.btnReset.setEnabled(state in ("ref_captured", "sample_captured", "scanning", "scan_done"))
         self.btnToggleOverlay.setEnabled(state == "scan_done")
         self.btnExportYolo.setEnabled(state == "scan_done" and self._yolo.count() > 0)
+
+        # Cập nhật label + mode của btnReference theo state
+        ctrl = _LANG.get("controls", {})
+        if state in ("roi_set", "idle"):
+            self.btnReference.setText(ctrl.get("btn_reference", "◉  CAPTURE REFERENCE"))
+            self._btn_ref_mode = "capture_reference"
+        elif state == "ref_captured":
+            self.btnReference.setText(ctrl.get("btn_capture_sample", "◎  CAPTURE SAMPLE"))
+            self._btn_ref_mode = "capture_sample"
+        elif state == "sample_captured":
+            self.btnReference.setText(ctrl.get("btn_capture_sample", "◎  CAPTURE SAMPLE"))
+            self._btn_ref_mode = "capture_sample"
+        elif state == "scan_done":
+            self.btnReference.setText(ctrl.get("btn_capture_sample", "◎  CAPTURE SAMPLE"))
+            self._btn_ref_mode = "capture_sample"
 
     # ── Size filter ───────────────────────────────────────────────────────────
 
@@ -522,13 +542,21 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def _on_capture_ref(self):
+        """Dispatch theo chế độ hiện tại của nút: capture_reference hoặc capture_sample."""
+        if self._btn_ref_mode == "capture_sample":
+            self._do_capture_sample()
+        else:
+            self._do_capture_reference()
+
+    def _do_capture_reference(self):
         if not self._worker or not self._roi_frame:
             self._set_status(_LANG.get("status",{}).get("draw_roi_first","Draw ROI before capturing reference."), error=True); return
         self.lblVideoFeed.clear_roi()
         self._session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._session_row_ids = []
         self._frame_vs_ref = self._frame_vs_prev = None
-        self._showing_result = False; self._overlay_mode = "ref"; self._first_scan = True
+        self._showing_result = False; self._showing_frozen_sample = False
+        self._overlay_mode = "ref"; self._first_scan = True
         self._particles_ref = []; self._particles_prev = []
         self._yolo.clear(); self._current_scan_index = -1
         self.btnToggleOverlay.setChecked(False); self.btnToggleOverlay.setText("VS REFERENCE")
@@ -536,8 +564,16 @@ class MainWindow(QMainWindow):
         self.lblDensityValue.setText("—"); self.lblCountValue.setText("—")
         self.lblStatus.setText("—"); self.progressDensity.setValue(0)
         self._clear_particle_table()
-        self._refresh_history(); self._set_btn_state("ref_captured")
-        self._set_status(_LANG.get("status",{}).get("ref_captured","[{}] Reference captured. Press SCAN.").format(self._session_id))
+        self._refresh_history()
+        _st = _LANG.get("status", {})
+        self._set_status(_st.get("ref_captured","[{}] Reference captured. Press SCAN.").format(self._session_id))
+
+    def _do_capture_sample(self):
+        if not self._worker:
+            return
+        self._worker.capture_sample()
+        _st = _LANG.get("status", {})
+        self._set_status(_st.get("sample_capturing","[{}] Capturing sample...").format(self._session_id))
 
     @pyqtSlot()
     def _on_scan(self):
@@ -551,7 +587,25 @@ class MainWindow(QMainWindow):
     def _on_scan_result(self, data):
         event = data.get("event")
         if event == "reference_captured":
-            self._set_status(_LANG.get("status",{}).get("ref_ok","[{}] Reference OK - Press SCAN.").format(self._session_id)); return
+            self._set_btn_state("ref_captured")
+            self._set_status(_LANG.get("status",{}).get("ref_ok","[{}] Reference OK - Press CAPTURE SAMPLE.").format(self._session_id))
+            return
+        if event == "sample_captured":
+            sample_frame = data.get("sample_frame")
+            if sample_frame is not None:
+                # Hiển thị frozen frame lên feed và dừng live update
+                self._showing_frozen_sample = True
+                qimg = self._bgr_to_qimage(sample_frame)
+                self.lblVideoFeed.set_frame_size(qimg.width(), qimg.height())
+                pm = QPixmap.fromImage(qimg).scaled(
+                    self.lblVideoFeed.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation)
+                self.lblVideoFeed.setPixmap(pm)
+            self._set_btn_state("sample_captured")
+            _st = _LANG.get("status", {})
+            self._set_status(_st.get("sample_captured","[{}] Sample captured. Press SCAN.").format(self._session_id))
+            return
         if event != "scan_done": return
 
         self._frame_vs_ref  = data.get("frame_vs_ref")
@@ -579,6 +633,7 @@ class MainWindow(QMainWindow):
         self.btnToggleOverlay.setChecked(False)
         self.btnToggleOverlay.setText("VS REFERENCE")
         self._update_particle_table(self._particles_ref)
+        self._showing_frozen_sample = False  # scan result replaces frozen sample view
         self._showing_result = True
 
         if crop_bgr is not None and self._particles_ref:
@@ -703,9 +758,11 @@ class MainWindow(QMainWindow):
         if self._worker: self._worker.reset_session()
         self._session_id = None; self._session_row_ids = []
         self._frame_vs_ref = self._frame_vs_prev = None
-        self._showing_result = False; self._overlay_mode = "ref"; self._first_scan = True
+        self._showing_result = False; self._showing_frozen_sample = False
+        self._overlay_mode = "ref"; self._first_scan = True
         self._particles_ref = []; self._particles_prev = []
         self._yolo.clear(); self._current_scan_index = -1
+        self._btn_ref_mode = "capture_reference"
         if self._roi_frame: self.lblVideoFeed.restore_roi(QRect(*self._roi_frame))
         self.lblDensityValue.setText("—"); self.lblCountValue.setText("—")
         self.lblStatus.setText("—"); self.progressDensity.setValue(0)
@@ -723,7 +780,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(QImage)
     def _on_frame(self, img):
-        if self._showing_result:
+        if self._showing_result or self._showing_frozen_sample:
             self.scan_line.setGeometry(self.lblVideoFeed.rect()); return
         self.lblVideoFeed.set_frame_size(img.width(), img.height())
         pm = QPixmap.fromImage(img).scaled(
@@ -788,7 +845,11 @@ class MainWindow(QMainWindow):
         connected = self._worker and self._worker.isRunning()
         self.btnConnect.setText(ctrl.get("btn_disconnect" if connected else "btn_connect",
                                          "DISCONNECT" if connected else "CONNECT"))
-        self.btnReference.setText(ctrl.get("btn_reference", "◉  CAPTURE REFERENCE"))
+        # btnReference label phụ thuộc vào chế độ hiện tại
+        if getattr(self, "_btn_ref_mode", "capture_reference") == "capture_sample":
+            self.btnReference.setText(ctrl.get("btn_capture_sample", "◎  CAPTURE SAMPLE"))
+        else:
+            self.btnReference.setText(ctrl.get("btn_reference", "◉  CAPTURE REFERENCE"))
         self.btnReset.setText(ctrl.get("btn_reset", "↺  NEW PAPER"))
         if self.btnScan.text() not in (
             ctrl.get("btn_scan_active", "SCANNING..."),

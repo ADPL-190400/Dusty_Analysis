@@ -59,7 +59,7 @@ EXPOSURE_MODE = "manual"   # ← "auto" hoặc "manual"
 #     Môi trường phòng bình thường           :  5_000 – 30_000 µs
 #     Môi trường tối / tốc độ chậm          : 30_000 – 100_000 µs
 #   Lưu ý: GigE thường giới hạn max exposure = 1 / FPS (ví dụ 30fps → max ~33_333 µs)
-EXPOSURE_TIME_US: float = 5000.0   # ← chỉnh tại đây (đơn vị: micro-giây)
+EXPOSURE_TIME_US: float = 20_000.0   # ← chỉnh tại đây (đơn vị: micro-giây)
 
 # ── Cấu hình OpenCV (chỉ dùng khi CAMERA_BACKEND = "opencv") ─────────────────
 OPENCV_CAMERA_INDEX = 0
@@ -277,15 +277,13 @@ class _GigECamera:
                 return cv2.cvtColor(gray8, cv2.COLOR_GRAY2BGR)
 
             elif fmt in ("BayerRG8", "BayerRG"):
-                
                 # return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_RG2BGR)
               
                 # return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GR2BGR)
                 return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2RGB)
 
             elif fmt in ("BayerGB8", "BayerGB"):
-                # return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2BGR)
-                return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2RGB)
+                return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2BGR)
 
             elif fmt in ("BayerGR8", "BayerGR"):
                 return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GR2BGR)
@@ -336,7 +334,7 @@ class _OpenCVCamera:
         self._cap = cv2.VideoCapture(self._index, backend)
         if not self._cap.isOpened():
             return False
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  2448)
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  2048)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
         self._cap.set(cv2.CAP_PROP_FPS,          TARGET_FPS)
         # Exposure
@@ -391,21 +389,24 @@ class CVWorker(QThread):
     scan_result = pyqtSignal(dict)
     error       = pyqtSignal(str)
 
-    IDLE    = "idle"
-    CAPTURE = "capture"
-    SCAN    = "scan"
+    IDLE           = "idle"
+    CAPTURE        = "capture"
+    CAPTURE_SAMPLE = "capture_sample"
+    SCAN           = "scan"
 
     def __init__(self, camera_index: int = 0, roi: tuple | None = None):
         super().__init__()
         # camera_index giữ để tương thích API cũ; GigE dùng GIGE_CAMERA_ID.
-        self.camera_index = camera_index
-        self.roi          = roi
-        self.state        = self.IDLE
-        self._running     = False
-        self._mutex       = QMutex()
-        self._reference   = None
-        self._prev_scan   = None
-        self._cam         = None   # set by run(), used by set_exposure()
+        self.camera_index   = camera_index
+        self.roi            = roi
+        self.state          = self.IDLE
+        self._running       = False
+        self._mutex         = QMutex()
+        self._reference     = None
+        self._prev_scan     = None
+        self._frozen_sample     = None   # crop ROI được chụp bởi capture_sample()
+        self._frozen_full_frame = None   # full frame tương ứng để làm overlay base
+        self._cam           = None   # set by run(), used by set_exposure()
 
     # ── Public API ───────────────────────────────────────────────────────────
 
@@ -447,6 +448,14 @@ class CVWorker(QThread):
         with QMutexLocker(self._mutex):
             self.state = self.CAPTURE
 
+    def capture_sample(self) -> None:
+        """Chụp 1 frame từ camera và giữ làm 'frozen sample' để scan sau."""
+        with QMutexLocker(self._mutex):
+            if self._reference is None:
+                self.error.emit("Chưa có ảnh reference. Hãy chụp reference trước.")
+                return
+            self.state = self.CAPTURE_SAMPLE
+
     def capture_scan(self) -> None:
         with QMutexLocker(self._mutex):
             if self._reference is None:
@@ -456,8 +465,10 @@ class CVWorker(QThread):
 
     def reset_session(self) -> None:
         with QMutexLocker(self._mutex):
-            self._reference = None
-            self._prev_scan = None
+            self._reference         = None
+            self._prev_scan         = None
+            self._frozen_sample     = None
+            self._frozen_full_frame = None
             self.state = self.IDLE
 
     def stop(self) -> None:
@@ -508,47 +519,69 @@ class CVWorker(QThread):
             if state == self.CAPTURE and roi:
                 crop = self._crop(frame, roi)
                 with QMutexLocker(self._mutex):
-                    self._reference = crop.copy()
-                    self._prev_scan = None
-                    self.state      = self.IDLE
+                    self._reference         = crop.copy()
+                    self._prev_scan         = None
+                    self._frozen_sample     = None
+                    self._frozen_full_frame = None
+                    self.state              = self.IDLE
                 self.scan_result.emit({"event": "reference_captured"})
+
+            elif state == self.CAPTURE_SAMPLE and roi:
+                crop        = self._crop(frame, roi)
+                full_frozen = frame.copy()  # giữ full frame để hiển thị & làm overlay base
+                with QMutexLocker(self._mutex):
+                    self._frozen_sample     = crop.copy()
+                    self._frozen_full_frame = full_frozen
+                    self.state              = self.IDLE
+                self.scan_result.emit({
+                    "event":        "sample_captured",
+                    "sample_frame": full_frozen,  # UI dùng để freeze live feed
+                })
 
             elif state == self.SCAN and roi:
                 with QMutexLocker(self._mutex):
-                    ref       = self._reference
-                    prev_scan = self._prev_scan
+                    ref           = self._reference
+                    prev_scan     = self._prev_scan
+                    frozen_sample = self._frozen_sample
+                    frozen_full   = self._frozen_full_frame
 
                 if ref is not None:
-                    crop     = self._crop(frame, roi)
-                    has_prev = prev_scan is not None
+                    # Luôn dùng frozen sample; fallback live frame nếu chưa có
+                    crop      = frozen_sample if frozen_sample is not None else self._crop(frame, roi)
+                    base_full = frozen_full   if frozen_full   is not None else frame
+                    has_prev  = prev_scan is not None
 
                     result_vs_ref  = self._analyse(crop, ref, roi)
                     prev_target    = prev_scan if has_prev else ref
                     result_vs_prev = self._analyse(crop, prev_target, roi)
 
+                    # Dùng frozen full frame làm nền overlay — không phải live frame
                     ann_vs_ref  = self._build_overlay(
-                        frame.copy(), crop, ref,         roi)
+                        base_full.copy(), crop, ref,         roi)
                     ann_vs_prev = self._build_overlay(
-                        frame.copy(), crop, prev_target, roi)
+                        base_full.copy(), crop, prev_target, roi)
 
                     with QMutexLocker(self._mutex):
-                        self._prev_scan = crop.copy()
-                        self.state      = self.IDLE
+                        self._prev_scan         = crop.copy()
+                        self._frozen_sample     = None   # xóa sau khi đã dùng
+                        self._frozen_full_frame = None
+                        self.state              = self.IDLE
 
                     self.scan_result.emit({
-                        "event":          "scan_done",
-                        "density":        result_vs_ref["density"],
-                        "count":          result_vs_ref["count"],
-                        "status":         result_vs_ref["status"],
-                        "particles":      result_vs_ref["particles"],
-                        "density_prev":   result_vs_prev["density"],
-                        "count_prev":     result_vs_prev["count"],
-                        "status_prev":    result_vs_prev["status"],
-                        "particles_prev": result_vs_prev["particles"],
-                        "frame_vs_ref":   ann_vs_ref,
-                        "frame_vs_prev":  ann_vs_prev,
-                        "crop_bgr":       crop,
-                        "has_prev":       has_prev,
+                        "event":              "scan_done",
+                        "density":            result_vs_ref["density"],
+                        "count":              result_vs_ref["count"],
+                        "status":             result_vs_ref["status"],
+                        "particles":          result_vs_ref["particles"],
+                        "density_prev":       result_vs_prev["density"],
+                        "count_prev":         result_vs_prev["count"],
+                        "status_prev":        result_vs_prev["status"],
+                        "particles_prev":     result_vs_prev["particles"],
+                        "frame_vs_ref":       ann_vs_ref,
+                        "frame_vs_prev":      ann_vs_prev,
+                        "crop_bgr":           crop,
+                        "has_prev":           has_prev,
+                        "used_frozen_sample": frozen_sample is not None,
                     })
 
             self.frame_ready.emit(self._to_qimage(annotated))
