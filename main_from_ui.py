@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from cv_worker      import CVWorker
 from database       import init_db, save_inspection, fetch_history, InspectionRecord
 from clickablelabel import ClickableLabel
-from yolo_exporter  import YoloExporter, CLASS_NAMES, DEFAULT_CLASS_ID
+from yolo_exporter  import YoloExporter, CLASS_NAMES, DEFAULT_CLASS_ID, FINE_MAX_PX, COARSE_MIN_PX, auto_classify_particle
 from theme_manager  import DARK, LIGHT, build_stylesheet, dialog_stylesheet, load_lang, FONT_SIZES
 
 SCAN_ANIM_MS = 800
@@ -86,15 +86,33 @@ class ClassPickerDialog(QDialog):
             f"{cp.get('info_w','W: {} px').format(w_px)}   "
             f"{cp.get('info_h','H: {} px').format(h_px)}"
         )
-        info.setStyleSheet(f"color: {_PALETTE['text_secondary']}; font-size: 11px; margin-bottom: 6px;")
+        info.setStyleSheet(f"color: {_PALETTE['text_secondary']}; font-size: 11px; margin-bottom: 2px;")
         layout.addWidget(info)
+
+        # Auto-label hint
+        auto_cls = auto_classify_particle(w_px, h_px)
+        max_dim  = max(w_px, h_px)
+        if max_dim < FINE_MAX_PX:
+            threshold_hint = f"max dim {max_dim}px < {FINE_MAX_PX}px → auto: dust_fine"
+        elif max_dim < COARSE_MIN_PX:
+            threshold_hint = f"{FINE_MAX_PX}px ≤ max dim {max_dim}px < {COARSE_MIN_PX}px → auto: dust_medium"
+        else:
+            threshold_hint = f"max dim {max_dim}px ≥ {COARSE_MIN_PX}px → auto: dust_coarse"
+        hint_lbl = QLabel(f"  ⬡ {threshold_hint}")
+        hint_lbl.setStyleSheet(
+            f"color: {_class_color(auto_cls)}; font-size: 10px; "
+            f"margin-bottom: 8px; font-style: italic;"
+        )
+        layout.addWidget(hint_lbl)
 
         # Buttons chọn class
         self._btn_group = QButtonGroup(self)
         self._btn_group.setExclusive(True)
         for cls_id, cls_name in enumerate(CLASS_NAMES):
-            color = _class_color(cls_id)
-            btn = QPushButton(f"  ● {cls_name}")
+            color    = _class_color(cls_id)
+            is_auto  = (cls_id == auto_cls) and (cls_id < 3)  # chỉ badge 3 class bụi
+            badge    = "  [AUTO]" if is_auto else ""
+            btn = QPushButton(f"  ● {cls_name}{badge}")
             btn.setCheckable(True)
             btn.setChecked(cls_id == current_class)
             btn.setStyleSheet(

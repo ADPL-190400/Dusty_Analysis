@@ -46,6 +46,35 @@ CLASS_NAMES = [
     "contaminant",     # 4 — tạp chất khác
 ]
 
+# ── Auto-label thresholds (dựa trên cạnh dài nhất của bounding box, đơn vị px)
+# Chỉnh 2 giá trị này để thay đổi ngưỡng phân loại:
+#   max(w_px, h_px) <  FINE_MAX_PX               → dust_fine   (class 0)
+#   FINE_MAX_PX  ≤ max(w_px, h_px) < COARSE_MIN_PX → dust_medium (class 1)
+#   max(w_px, h_px) >= COARSE_MIN_PX              → dust_coarse (class 2)
+FINE_MAX_PX   = 20   # px  — dưới ngưỡng này là bụi mịn
+COARSE_MIN_PX = 60   # px  — từ ngưỡng này trở lên là bụi thô
+
+
+def auto_classify_particle(w_px: int, h_px: int) -> int:
+    """
+    Tự động gán class_id cho hạt bụi dựa trên kích thước bounding box.
+
+    Dùng cạnh dài nhất (max dimension) để phân loại:
+        < FINE_MAX_PX              → 0  dust_fine
+        FINE_MAX_PX .. COARSE_MIN_PX → 1  dust_medium
+        >= COARSE_MIN_PX           → 2  dust_coarse
+
+    Returns:
+        class_id (int): 0, 1, hoặc 2
+    """
+    max_dim = max(w_px, h_px)
+    if max_dim < FINE_MAX_PX:
+        return 0  # dust_fine
+    elif max_dim < COARSE_MIN_PX:
+        return 1  # dust_medium
+    else:
+        return 2  # dust_coarse
+
 
 class ParticleBox(NamedTuple):
     cx:   int
@@ -80,7 +109,11 @@ class YoloExporter:
         """
         if len(particles) == 0:
             return -1
-        labels = {p["id"]: DEFAULT_CLASS_ID for p in particles}
+        # Auto-label mỗi hạt theo kích thước bounding box
+        labels = {
+            p["id"]: auto_classify_particle(p.get("w_px", 0), p.get("h_px", 0))
+            for p in particles
+        }
         self._scans.append({
             "crop":      crop_bgr.copy(),
             "particles": list(particles),

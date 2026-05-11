@@ -59,7 +59,7 @@ EXPOSURE_MODE = "manual"   # ← "auto" hoặc "manual"
 #     Môi trường phòng bình thường           :  5_000 – 30_000 µs
 #     Môi trường tối / tốc độ chậm          : 30_000 – 100_000 µs
 #   Lưu ý: GigE thường giới hạn max exposure = 1 / FPS (ví dụ 30fps → max ~33_333 µs)
-EXPOSURE_TIME_US: float = 20_000.0   # ← chỉnh tại đây (đơn vị: micro-giây)
+EXPOSURE_TIME_US: float = 5000.0   # ← chỉnh tại đây (đơn vị: micro-giây)
 
 # ── Cấu hình OpenCV (chỉ dùng khi CAMERA_BACKEND = "opencv") ─────────────────
 OPENCV_CAMERA_INDEX = 0
@@ -277,13 +277,15 @@ class _GigECamera:
                 return cv2.cvtColor(gray8, cv2.COLOR_GRAY2BGR)
 
             elif fmt in ("BayerRG8", "BayerRG"):
+                
                 # return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_RG2BGR)
               
                 # return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GR2BGR)
                 return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2RGB)
 
             elif fmt in ("BayerGB8", "BayerGB"):
-                return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2BGR)
+                # return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2BGR)
+                return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GB2RGB)
 
             elif fmt in ("BayerGR8", "BayerGR"):
                 return cv2.cvtColor(raw.reshape((h, w)), cv2.COLOR_BAYER_GR2BGR)
@@ -334,7 +336,7 @@ class _OpenCVCamera:
         self._cap = cv2.VideoCapture(self._index, backend)
         if not self._cap.isOpened():
             return False
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  2048)
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  2448)
         self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
         self._cap.set(cv2.CAP_PROP_FPS,          TARGET_FPS)
         # Exposure

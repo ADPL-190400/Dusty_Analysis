@@ -30,9 +30,9 @@ def load_lang(code: str = "en") -> dict:
 #   FONT_SIZES["title"]       : tên app trên top bar
 
 FONT_SIZES = {
-    "base":         20,   # ← tăng lên 14-15 nếu muốn to hơn
+    "base":         20, # ← tăng lên 14-15 nếu muốn to hơn
     "small":        14,
-    "section":      11,
+    "section":      14,
     "metric_value": 36,   # ← số density / count
     "status":       20,   # ← badge CLEAN / HEAVY DUST
     "title":        16,
