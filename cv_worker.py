@@ -151,6 +151,15 @@ class _GigECamera:
             self._cam = Aravis.Camera.new(self._camera_id)
             cam = self._cam
 
+            target_height = 1200
+            sensor_height = 2048
+            offset_y = (sensor_height - target_height) // 2
+
+            try:
+                cam.set_region(0,offset_y,2448,target_height)
+            except Exception as e:
+                print(f"[Aravis] can not set ROI {e}")
+
             # ── Pixel format ────────────────────────────────────────────────
             try:
                 cam.set_pixel_format_from_string(GIGE_PIXEL_FORMAT)
@@ -240,6 +249,7 @@ class _GigECamera:
 
         raw   = np.frombuffer(buf.get_data(), dtype=np.uint8)
         frame = self._decode_frame(raw)
+        
 
         # Trả buffer về pool ngay sau khi copy xong
         self._stream.push_buffer(buf)
@@ -334,8 +344,8 @@ class _OpenCVCamera:
         self._cap = cv2.VideoCapture(self._index, backend)
         if not self._cap.isOpened():
             return False
-        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH,  2048)
-        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, 2448)
+        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 2048)
         self._cap.set(cv2.CAP_PROP_FPS,          TARGET_FPS)
         # Exposure
         if EXPOSURE_MODE == "manual":
@@ -503,6 +513,8 @@ class CVWorker(QThread):
             if not ok or frame is None:
                 time.sleep(0.02)
                 continue
+
+            frame = cv2.flip(frame,-1)
 
             with QMutexLocker(self._mutex):
                 state = self.state

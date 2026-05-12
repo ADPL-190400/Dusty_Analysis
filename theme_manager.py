@@ -123,10 +123,10 @@ LIGHT = {
     "border_subtle":  "#D8DCE6",
 
     # Text
-    "text_primary":   "#2A2E3A",
-    "text_secondary": "#7A8090",
-    "text_bright":    "#1A1E28",
-    "text_white":     "#0A0C10",
+    "text_primary":   "#000000",
+    "text_secondary": "#000000",
+    "text_bright":    "#0048FF",
+    "text_white":     "#000000",
 
     # Accent / action colors (slightly deepened for light bg readability)
     "accent_cyan":    "#007BB5",
@@ -151,7 +151,7 @@ LIGHT = {
     "history_cur_bg":   "#CCE8F5",
     "history_cur_fg":   "#005A8A",
     "history_other_bg": "#FFFFFF",
-    "history_other_fg": "#7A8090",
+    "history_other_fg": "#616161",
     "scan_cur_bg":      "#E8F4FB",
     "scan_other_bg":    "#F8F9FB",
 

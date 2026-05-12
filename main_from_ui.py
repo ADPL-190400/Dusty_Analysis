@@ -204,7 +204,7 @@ def _extract_session(image_path, timestamp):
     except Exception:
         return timestamp[:16].replace(" ","_").replace(":","")
 
-def _populate_history_table(table, all_records, current_session_id):
+def _populate_history_table(_current_theme,table, all_records, current_session_id):
     from collections import defaultdict
     table.clearContents(); table.setRowCount(0); table.setColumnCount(5)
     session_map = defaultdict(list)
@@ -230,10 +230,11 @@ def _populate_history_table(table, all_records, current_session_id):
             _, sn, r, is_cur = rd
             bg = _PALETTE["scan_cur_bg"] if is_cur else _PALETTE["scan_other_bg"]
             sc = STATUS_COLORS.get(r.status, "#C8CDD8")
-            table.setItem(ri,0,_item(f"  #{sn}", color="#5A6070", bg=bg))
-            table.setItem(ri,1,_item(r.timestamp, color="#C8CDD8", bg=bg))
-            table.setItem(ri,2,_item(f"{r.density_score:.2f}%", color="#FFFFFF", bg=bg))
-            table.setItem(ri,3,_item(str(r.pixel_count), color="#FFFFFF", bg=bg))
+            color = "#FFFFFF" if _current_theme == "dark" else "#6D6D6D"
+            table.setItem(ri,0,_item(f"  #{sn}", color=color, bg=bg))
+            table.setItem(ri,1,_item(r.timestamp, color=color, bg=bg))
+            table.setItem(ri,2,_item(f"{r.density_score:.2f}%", color=color, bg=bg))
+            table.setItem(ri,3,_item(str(r.pixel_count), color=color, bg=bg))
             table.setItem(ri,4,_item(r.status or "N/A", color=sc, bg=bg))
             table.setRowHeight(ri, 25)
 
@@ -244,6 +245,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi(UI_FILE, self)
+        self.showFullScreen()
         init_db()
         self._worker = None; self._roi_frame = None
         self._session_id = None; self._session_row_ids = []
@@ -256,6 +258,10 @@ class MainWindow(QMainWindow):
         self._min_area_filter = 0       # giá trị slider size filter
         self._showing_frozen_sample = False  # True khi đang hiển thị frozen sample (chưa scan)
         self._post_init()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
 
     def _post_init(self):
         if not isinstance(self.lblVideoFeed, ClickableLabel):
@@ -711,10 +717,11 @@ class MainWindow(QMainWindow):
             cls_id   = self._yolo.get_particle_class(self._current_scan_index, p["id"])
             cls_name = _class_name(cls_id)
             cls_col  = _class_color(cls_id)
-            self.tableParticles.setItem(row, 0, _item(str(p["id"]),       color="#5A6070"))
-            self.tableParticles.setItem(row, 1, _item(str(p["area_px"]), color="#FFFFFF"))
-            self.tableParticles.setItem(row, 2, _item(str(p["w_px"]),    color="#C8CDD8"))
-            self.tableParticles.setItem(row, 3, _item(str(p["h_px"]),    color="#C8CDD8"))
+            is_dark = (self._current_theme == "dark")
+            self.tableParticles.setItem(row, 0, _item(str(p["id"]),       color="#5A6070" if is_dark else "#5A6070"))
+            self.tableParticles.setItem(row, 1, _item(str(p["area_px"]), color="#FFFFFF"if is_dark else "#5A6070"))
+            self.tableParticles.setItem(row, 2, _item(str(p["w_px"]),    color="#C8CDD8"if is_dark else "#5A6070"))
+            self.tableParticles.setItem(row, 3, _item(str(p["h_px"]),    color="#C8CDD8"if is_dark else "#5A6070"))
             self.tableParticles.setItem(row, 4, _item(cls_name,           color=cls_col,  bold=True))
             self.tableParticles.setRowHeight(row, 22)
 
@@ -794,7 +801,7 @@ class MainWindow(QMainWindow):
     def _on_error(self, msg): self._set_status(f"ERROR: {msg}", error=True)
 
     def _refresh_history(self):
-        _populate_history_table(self.tableHistory, fetch_history(500), self._session_id)
+        _populate_history_table(self._current_theme,self.tableHistory, fetch_history(500), self._session_id)
 
     @staticmethod
     def _bgr_to_qimage(frame):
