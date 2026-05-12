@@ -60,7 +60,7 @@ DARK = {
     # Text
     "text_primary":   "#C8CDD8",
     "text_secondary": "#5A6070",
-    "text_bright":    "#E8EAF0",
+    "text_bright":    "#FFE100",
     "text_white":     "#FFFFFF",
 
     # Accent / action colors (keep same in both modes)
@@ -102,7 +102,7 @@ DARK = {
     "table_row_border":"#1A1E28",
     "table_select_bg": "#003D55",
     "header_bg":       "#151820",
-    "header_fg":       "#5A6070",
+    "header_fg":       "#D0FF00",
     "header_border":   "#00C8FF",
 }
 
@@ -167,7 +167,7 @@ LIGHT = {
     "table_row_border":"#E0E4EC",
     "table_select_bg": "#CCE8F5",
     "header_bg":       "#F0F2F5",
-    "header_fg":       "#7A8090",
+    "header_fg":       "#0400FF",
     "header_border":   "#007BB5",
 }
 
