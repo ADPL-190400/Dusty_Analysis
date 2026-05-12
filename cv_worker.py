@@ -151,12 +151,12 @@ class _GigECamera:
             self._cam = Aravis.Camera.new(self._camera_id)
             cam = self._cam
 
-            target_height = 1200
-            sensor_height = 2048
-            offset_y = (sensor_height - target_height) // 2
+            target_height = 1300
+            sensor_height = 2448
+            offset_y = (sensor_height - target_height) // 2 
 
             try:
-                cam.set_region(0,offset_y,2448,target_height)
+                cam.set_region(offset_y,0,target_height,2048)
             except Exception as e:
                 print(f"[Aravis] can not set ROI {e}")
 
@@ -514,7 +514,8 @@ class CVWorker(QThread):
                 time.sleep(0.02)
                 continue
 
-            frame = cv2.flip(frame,-1)
+            # frame = cv2.flip(frame,0)
+            frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
             with QMutexLocker(self._mutex):
                 state = self.state
