@@ -42,17 +42,17 @@
 
   "particles_table": {
     "col_id": "#",
-    "col_area": "面積 px²",
-    "col_w": "幅 px",
-    "col_h": "高さ px",
+    "col_area": "面積 um²",
+    "col_w": "幅 um",
+    "col_h": "高さ um",
     "col_class": "クラス"
   },
 
   "class_picker": {
     "title": "粒子ラベル付け  —  #{}",
-    "info_area": "面積: {} px²",
-    "info_w": "幅: {} px",
-    "info_h": "高さ: {} px",
+    "info_area": "面積: {} um²",
+    "info_w": "幅: {} um",
+    "info_h": "高さ: {} um",
     "btn_confirm": "✔  確定",
     "btn_cancel": "キャンセル"
   },

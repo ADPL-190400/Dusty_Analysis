@@ -42,17 +42,17 @@
 
   "particles_table": {
     "col_id": "#",
-    "col_area": "AREA px²",
-    "col_w": "W px",
-    "col_h": "H px",
+    "col_area": "AREA um²",
+    "col_w": "W um",
+    "col_h": "H um",
     "col_class": "CLASS"
   },
 
   "class_picker": {
     "title": "Label Particle  —  #{}",
-    "info_area": "Area: {} px²",
-    "info_w": "W: {} px",
-    "info_h": "H: {} px",
+    "info_area": "Area: {} um²",
+    "info_w": "W: {} um",
+    "info_h": "H: {} um",
     "btn_confirm": "✔  CONFIRM",
     "btn_cancel": "CANCEL"
   },

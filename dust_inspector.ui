@@ -550,7 +550,7 @@
                 </size>
                </property>
                <property name="text">
-                <string>0 px²</string>
+                <string>0 um²</string>
                </property>
                <property name="alignment">
                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -633,17 +633,17 @@
              </column>
              <column>
               <property name="text">
-               <string>AREA px²</string>
+               <string>AREA um²</string>
               </property>
              </column>
              <column>
               <property name="text">
-               <string>W px</string>
+               <string>W um</string>
               </property>
              </column>
              <column>
               <property name="text">
-               <string>H px</string>
+               <string>H um</string>
               </property>
              </column>
              <column>

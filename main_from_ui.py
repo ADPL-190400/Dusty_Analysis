@@ -32,7 +32,7 @@ from yolo_exporter  import YoloExporter, CLASS_NAMES, DEFAULT_CLASS_ID, FINE_MAX
 from theme_manager  import DARK, LIGHT, build_stylesheet, dialog_stylesheet, load_lang, FONT_SIZES
 
 SCAN_ANIM_MS = 800
-
+FACTOR_UM = 133
 # ── Module-level globals for theme & language (mutated at runtime) ────────────
 _PALETTE: dict = DARK   # active colour palette
 _LANG:    dict = {}     # active language strings (populated before MainWindow)
@@ -78,13 +78,14 @@ class ClassPickerDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
 
         # Info hạt bụi
-        area = particle.get("area_px", 0)
-        w_px = particle.get("w_px", 0)
-        h_px = particle.get("h_px", 0)
+        area = particle.get("area_px", 0)*FACTOR_UM 
+        w_px = particle.get("w_px", 0)*FACTOR_UM 
+        h_px = particle.get("h_px", 0)*FACTOR_UM 
+        
         info = QLabel(
-            f"  {cp.get('info_area','Area: {} px²').format(area)}   "
-            f"{cp.get('info_w','W: {} px').format(w_px)}   "
-            f"{cp.get('info_h','H: {} px').format(h_px)}"
+            f"  {cp.get('info_area','Area: {} um²').format(area)}   "
+            f"{cp.get('info_w','W: {} um').format(w_px)}   "
+            f"{cp.get('info_h','H: {} um').format(h_px)}"
         )
         info.setStyleSheet(f"color: {_PALETTE['text_secondary']}; font-size: 11px; margin-bottom: 2px;")
         layout.addWidget(info)
@@ -280,7 +281,7 @@ class MainWindow(QMainWindow):
 
         # tableParticles: 5 cột (thêm CLASS)
         self.tableParticles.setColumnCount(5)
-        self.tableParticles.setHorizontalHeaderLabels(["#","AREA px²","W px","H px","CLASS"])
+        self.tableParticles.setHorizontalHeaderLabels(["#","AREA um²","W um","H um","CLASS"])
         self.tableParticles.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
         self.btnConnect.clicked.connect(self._on_connect)
@@ -367,7 +368,7 @@ class MainWindow(QMainWindow):
 
     def _update_size_filter_label(self, value: int):
         try:
-            self.lblSizeFilterValue.setText(f"{value} px²")
+            self.lblSizeFilterValue.setText(f"{value} um²")
         except AttributeError:
             pass  # widget chưa tồn tại
 
@@ -719,9 +720,9 @@ class MainWindow(QMainWindow):
             cls_col  = _class_color(cls_id)
             is_dark = (self._current_theme == "dark")
             self.tableParticles.setItem(row, 0, _item(str(p["id"]),       color="#5A6070" if is_dark else "#5A6070"))
-            self.tableParticles.setItem(row, 1, _item(str(p["area_px"]), color="#FFFFFF"if is_dark else "#5A6070"))
-            self.tableParticles.setItem(row, 2, _item(str(p["w_px"]),    color="#C8CDD8"if is_dark else "#5A6070"))
-            self.tableParticles.setItem(row, 3, _item(str(p["h_px"]),    color="#C8CDD8"if is_dark else "#5A6070"))
+            self.tableParticles.setItem(row, 1, _item(str(round(p["area_px"]*FACTOR_UM,1)), color="#FFFFFF"if is_dark else "#5A6070"))
+            self.tableParticles.setItem(row, 2, _item(str(round(p["w_px"]*FACTOR_UM,1)),    color="#C8CDD8"if is_dark else "#5A6070"))
+            self.tableParticles.setItem(row, 3, _item(str(round(p["h_px"]*FACTOR_UM,1)),    color="#C8CDD8"if is_dark else "#5A6070"))
             self.tableParticles.setItem(row, 4, _item(cls_name,           color=cls_col,  bold=True))
             self.tableParticles.setRowHeight(row, 22)
 
@@ -885,8 +886,8 @@ class MainWindow(QMainWindow):
         # ── Table headers ─────────────────────────────────────────────────
         pt = lng.get("particles_table", {})
         self.tableParticles.setHorizontalHeaderLabels([
-            pt.get("col_id","#"), pt.get("col_area","AREA px²"),
-            pt.get("col_w","W px"), pt.get("col_h","H px"),
+            pt.get("col_id","#"), pt.get("col_area","AREA um²"),
+            pt.get("col_w","W um"), pt.get("col_h","H um"),
             pt.get("col_class","CLASS"),
         ])
         ht = lng.get("history", {})
