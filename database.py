@@ -1,30 +1,30 @@
 """
-database.py - SQLite persistence layer for Dust Inspection results.
-Handles history logging and retrieval.
+database.py  —  SQLite persistence layer for Dust Inspection results.
+Paths are now read from config.cfg so they can be set in config.toml.
 """
 
 import sqlite3
-import os
-from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
 
+from config import cfg
 
-DB_PATH = Path("data/inspection_history.db")
-IMAGE_DIR = Path("data/captures")
+# ── Resolved paths (read once at import) ──────────────────────────────────────
+DB_PATH   = Path(cfg.paths.db_path)
+IMAGE_DIR = Path(cfg.paths.image_dir)
 
 
 @dataclass
 class InspectionRecord:
-    id: Optional[int]
-    timestamp: str
+    id:            Optional[int]
+    timestamp:     str
     density_score: float
-    pixel_count: int
-    status: str
-    image_path: str
-    roi_width: int
-    roi_height: int
+    pixel_count:   int
+    status:        str
+    image_path:    str
+    roi_width:     int
+    roi_height:    int
 
 
 def init_db() -> None:
@@ -51,14 +51,7 @@ def init_db() -> None:
 
 
 def save_inspection(record: InspectionRecord) -> int:
-    """
-    Persist one inspection result. Returns the new row ID.
-
-    Pattern:
-        1. Save annotated frame to disk (caller passes image_path already written).
-        2. INSERT metadata row → get ROWID.
-        3. Return ID so UI can confirm the save.
-    """
+    """Persist one inspection result. Returns the new row ID."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
@@ -86,9 +79,7 @@ def fetch_history(limit: int = 100) -> list[InspectionRecord]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute(
-        """SELECT * FROM inspections ORDER BY id DESC LIMIT ?""", (limit,)
-    )
+    cursor.execute("SELECT * FROM inspections ORDER BY id DESC LIMIT ?", (limit,))
     rows = cursor.fetchall()
     conn.close()
 
