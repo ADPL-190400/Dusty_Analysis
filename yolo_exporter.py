@@ -15,6 +15,34 @@ from typing import NamedTuple
 from config import cfg
 
 
+# ── Backward-compatible aliases ───────────────────────────────────────────────
+# main_from_ui.py imports these names directly; they now proxy cfg so they
+# always reflect the current config without touching the UI code.
+@property  # type: ignore[misc]
+def CLASS_NAMES() -> list[str]:          # noqa: N802
+    return cfg.yolo.class_names
+
+# For module-level attribute access (not descriptor), expose as plain references
+# that are re-evaluated from cfg at import time and updated if cfg changes.
+# Simplest approach: make them module-level properties via a small proxy object,
+# but since Python doesn't support module-level properties we use __getattr__.
+
+def __getattr__(name: str):
+    """
+    Lazily resolve legacy constant names so existing imports keep working:
+        from yolo_exporter import CLASS_NAMES, DEFAULT_CLASS_ID, FINE_MAX_PX, COARSE_MIN_PX
+    """
+    if name == "CLASS_NAMES":
+        return cfg.yolo.class_names
+    if name == "DEFAULT_CLASS_ID":
+        return 0
+    if name == "FINE_MAX_PX":
+        return cfg.yolo.fine_max_px
+    if name == "COARSE_MIN_PX":
+        return cfg.yolo.coarse_min_px
+    raise AttributeError(f"module 'yolo_exporter' has no attribute {name!r}")
+
+
 def auto_classify_particle(w_px: int, h_px: int) -> int:
     """
     Auto-assign class_id by bounding-box size (longest edge).
